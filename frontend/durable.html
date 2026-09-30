@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Durable Functions — Control Panel</title>
+<style>
+  :root {
+    --bg:#0f172a; --card:#1e293b; --line:#334155; --ink:#e2e8f0; --muted:#94a3b8;
+    --accent:#a78bfa; --ok:#4ade80; --bad:#f87171; --run:#fbbf24; --btn:#7c3aed;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:20px 24px; border-bottom:1px solid var(--line); }
+  header h1 { margin:0 0 4px; font-size:20px; }
+  header p { margin:0; color:var(--muted); font-size:13px; }
+  main { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px 24px; align-items:start; }
+  @media (max-width:900px){ main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card h2 { margin:0 0 4px; font-size:16px; }
+  .card .desc { color:var(--muted); font-size:12px; margin:0 0 12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .row label { color:var(--muted); font-size:13px; }
+  input { background:#0b1220; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:7px 9px; font:13px monospace; min-width:120px; }
+  button { background:var(--btn); color:#fff; border:0; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; }
+  button:hover { filter:brightness(1.12); } button.ghost { background:#334155; }
+  button:disabled { opacity:.5; cursor:default; }
+  .statusline { display:flex; align-items:center; gap:8px; margin:10px 0 6px; font-size:13px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); }
+  .dot.Running,.dot.Pending { background:var(--run); animation:pulse 1s infinite; }
+  .dot.Completed { background:var(--ok); } .dot.Failed,.dot.Terminated { background:var(--bad); }
+  @keyframes pulse { 50%{ opacity:.35; } }
+  .badge { font-weight:700; }
+  .badge.Completed{color:var(--ok);} .badge.Failed,.badge.Terminated{color:var(--bad);} .badge.Running,.badge.Pending{color:var(--run);}
+  .meta { font:12px monospace; color:var(--muted); word-break:break-all; margin:2px 0; }
+  pre { background:#0b1220; border:1px solid var(--line); border-radius:6px; padding:10px; margin:6px 0 0; overflow:auto; max-height:280px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Durable Functions — Control Panel</h1>
+  <p>Start orchestrations and watch them run. Requires <b>Azurite</b> running, then each app's host (see README).</p>
+</header>
+
+<main>
+  <!-- ============ HelloDurable (simplest orchestration) ============ -->
+  <section class="card">
+    <h2>HelloDurable · Hello sequence</h2>
+    <p class="desc">The simplest orchestration: calls one activity 3× and returns the list. <code>GET /start</code></p>
+    <div class="row"><label>Base URL</label><input id="helloBase" value="http://localhost:7220/api" style="min-width:240px" /></div>
+    <div class="row">
+      <button id="helloStart" onclick="startHello()">▶ Start orchestration</button>
+    </div>
+    <div class="statusline"><span id="helloDot" class="dot"></span>Status: <span id="helloStatus" class="badge">—</span></div>
+    <div id="helloInfo"></div>
+  </section>
+
+  <!-- ============ DurableFunctionDemo (parallel fan-out + retries) ============ -->
+  <section class="card">
+    <h2>DurableFunctionDemo · Customer dashboard</h2>
+    <p class="desc">Parallel fan-out/fan-in with retries. <code>POST /dashboard/{userId}</code>, then polls status.</p>
+    <div class="row"><label>Base URL</label><input id="dashBase" value="http://localhost:7219/api" style="min-width:240px" /></div>
+    <div class="row"><label>userId</label><input id="dashUser" value="user-777" /></div>
+    <div class="row">
+      <button id="dashStart" onclick="startDash()">▶ Start orchestration</button>
+    </div>
+    <div class="statusline"><span id="dashDot" class="dot"></span>Status: <span id="dashStatus" class="badge">—</span></div>
+    <div id="dashInfo"></div>
+  </section>
+</main>
+
+<script>
+  const val = id => document.getElementById(id).value.trim();
+  const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const pretty = o => JSON.stringify(o, null, 2);
+
+  function setStatus(prefix, status){
+    document.getElementById(prefix+'Dot').className = 'dot ' + status;
+    const badge = document.getElementById(prefix+'Status');
+    badge.textContent = status; badge.className = 'badge ' + status;
+  }
+
+  // ---- HelloDurable ----
+  // Start returns the built-in management payload with an ABSOLUTE statusQueryGetUri.
+  async function startHello(){
+    const btn = document.getElementById('helloStart'); btn.disabled = true;
+    const info = document.getElementById('helloInfo'); info.innerHTML = '';
+    setStatus('hello','Pending');
+    try {
+      const res = await fetch(val('helloBase') + '/start');
+      const mgmt = await res.json();
+      info.innerHTML = `<div class="meta">instanceId: ${esc(mgmt.id)}</div>`;
+      await pollAbsolute('hello', mgmt.statusQueryGetUri);
+    } catch (e){ networkError('hello', e); }
+    finally { btn.disabled = false; }
+  }
+
+  // Poll a full status URL (the Durable webhook) until it stops running.
+  async function pollAbsolute(prefix, url){
+    for (let i=0; i<60; i++){
+      const res = await fetch(url);
+      const data = await res.json();
+      setStatus(prefix, data.runtimeStatus);
+      if (['Completed','Failed','Terminated'].includes(data.runtimeStatus)){
+        render(prefix, data); return;
+      }
+      await sleep(1000);
+    }
+  }
+
+  // ---- DurableFunctionDemo ----
+  async function startDash(){
+    const btn = document.getElementById('dashStart'); btn.disabled = true;
+    const info = document.getElementById('dashInfo'); info.innerHTML = '';
+    setStatus('dash','Pending');
+    try {
+      const base = val('dashBase');
+      const res = await fetch(`${base}/dashboard/${encodeURIComponent(val('dashUser'))}`, { method:'POST' });
+      const start = await res.json();
+      info.innerHTML = `<div class="meta">instanceId: ${esc(start.instanceId)}</div>`;
+      // This app exposes its OWN status endpoint: GET /dashboard/status/{id}
+      for (let i=0; i<60; i++){
+        const s = await fetch(`${base}/dashboard/status/${start.instanceId}`);
+        const data = await s.json();
+        setStatus('dash', data.runtimeStatus);
+        if (['Completed','Failed','Terminated'].includes(data.runtimeStatus)){ render('dash', data); break; }
+        await sleep(1000);
+      }
+    } catch (e){ networkError('dash', e); }
+    finally { btn.disabled = false; }
+  }
+
+  function render(prefix, data){
+    const info = document.getElementById(prefix+'Info');
+    info.innerHTML =
+      `<div class="meta">instanceId: ${esc(data.instanceId || data.InstanceId || '')}</div>` +
+      `<pre>${esc(pretty(data.output ?? data))}</pre>`;
+  }
+  function networkError(prefix, e){
+    setStatus(prefix,'Failed');
+    document.getElementById(prefix+'Info').innerHTML =
+      `<div class="meta" style="color:var(--bad)">Network error: ${esc(e.message)}</div>` +
+      `<div class="meta">Check: Azurite running, host started, CORS enabled (see README).</div>`;
+  }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+</script>
+</body>
+</html>

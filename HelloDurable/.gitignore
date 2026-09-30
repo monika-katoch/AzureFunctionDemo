@@ -1,0 +1,5 @@
+bin/
+obj/
+__azurite/
+*.user
+local.settings.json

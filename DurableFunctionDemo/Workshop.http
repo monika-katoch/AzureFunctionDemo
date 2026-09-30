@@ -1,0 +1,15 @@
+### =====================================================================
+### Durable Functions — parallel data fetching workflow.
+### Requires Azurite running + the host on port 7219 (see README).
+### =====================================================================
+
+@base = http://localhost:7219/api
+
+### 1) START the orchestration for a user. Returns 202 + an instanceId.
+POST {{base}}/dashboard/user-777
+
+### 2) POLL status until runtimeStatus = "Completed".
+###    Paste the instanceId from step 1 in place of REPLACE_ID.
+###    (Watch the host console: GetOrdersAsync fails twice, then the retry
+###     policy recovers it on attempt 3 with exponential backoff.)
+GET {{base}}/dashboard/status/REPLACE_ID

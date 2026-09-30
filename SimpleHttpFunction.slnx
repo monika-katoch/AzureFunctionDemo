@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="DurableFunctionDemo/DurableFunctionDemo.csproj" />
+  <Project Path="FunctionApp1/FunctionApp1.csproj" Id="a412849a-cb36-4237-95f0-6d0d3a5c75fc" />
+  <Project Path="FunctionApp2/FunctionApp2.csproj" Id="c6d4cf48-f7a4-46c3-87bc-29974466ef24" />
+  <Project Path="HelloDurable/HelloDurable.csproj" />
+  <Project Path="MoonFunctionApp/MoonFunctionApp.csproj" />
+  <Project Path="SimpleHttpFunction/SimpleHttpFunction.csproj" />
+</Solution>

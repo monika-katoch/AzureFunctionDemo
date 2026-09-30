@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "DurableFunctionDemo": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7219",
+      "launchBrowser": false
+    }
+  }
+}

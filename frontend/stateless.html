@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stateless Functions — Control Panel</title>
+<style>
+  :root {
+    --bg:#0f172a; --card:#1e293b; --line:#334155; --ink:#e2e8f0; --muted:#94a3b8;
+    --accent:#38bdf8; --ok:#4ade80; --bad:#f87171; --btn:#2563eb;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:20px 24px; border-bottom:1px solid var(--line); }
+  header h1 { margin:0 0 4px; font-size:20px; }
+  header p { margin:0; color:var(--muted); font-size:13px; }
+  .bar { display:flex; gap:8px; align-items:center; padding:12px 24px; background:var(--card); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .bar label { color:var(--muted); font-size:13px; }
+  main { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px 24px; align-items:start; }
+  @media (max-width:840px){ main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card h2 { margin:0 0 4px; font-size:15px; }
+  .card .desc { color:var(--muted); font-size:12px; margin:0 0 12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  input, textarea { background:#0b1220; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:7px 9px; font:13px monospace; }
+  input { min-width:120px; } textarea { width:100%; min-height:70px; }
+  button { background:var(--btn); color:#fff; border:0; border-radius:6px; padding:7px 13px; font-size:13px; cursor:pointer; }
+  button:hover { filter:brightness(1.1); }
+  button.ghost { background:#334155; }
+  .out { margin-top:10px; }
+  .meta { font:12px monospace; color:var(--muted); margin-bottom:4px; word-break:break-all; }
+  .status { font-weight:700; } .status.ok{ color:var(--ok);} .status.bad{ color:var(--bad);}
+  pre { background:#0b1220; border:1px solid var(--line); border-radius:6px; padding:10px; margin:0; overflow:auto; max-height:260px; font-size:12px; }
+  .pill { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Stateless Functions — Control Panel</h1>
+  <p>Drives the <code>SimpleHttpFunction</code> app. Start it with <code>func start --port 7218</code>, then use the buttons below.</p>
+</header>
+
+<div class="bar">
+  <label>Base URL</label>
+  <input id="base" value="http://localhost:7071/api" style="min-width:260px" />
+  <span class="pill">Learning endpoints are open · Orders need the API key</span>
+</div>
+
+<main>
+  <!-- ============ LEARNING TRACK ============ -->
+  <section class="card">
+    <h2>S1 · Hello World</h2>
+    <p class="desc">The minimum function. <code>GET /S1_HelloWorld</code></p>
+    <button onclick="call('s1', get('/S1_HelloWorld'))">Call</button>
+    <div id="s1" class="out"></div>
+  </section>
+
+  <section class="card">
+    <h2>S2 · Route + Query</h2>
+    <p class="desc">Route param + query flag. <code>GET /greet/{name}?loud=</code></p>
+    <div class="row">
+      <input id="s2name" value="Sagar" />
+      <label><input type="checkbox" id="s2loud" /> loud</label>
+    </div>
+    <button onclick="call('s2', get(`/greet/${enc(val('s2name'))}?loud=${document.getElementById('s2loud').checked}`))">Call</button>
+    <div id="s2" class="out"></div>
+  </section>
+
+  <section class="card">
+    <h2>S3 · Request Body</h2>
+    <p class="desc">POST a JSON body. <code>POST /sum</code></p>
+    <textarea id="s3body">{ "numbers": [3, 4, 5] }</textarea>
+    <div class="row" style="margin-top:8px"><button onclick="call('s3', post('/sum', val('s3body')))">Call</button></div>
+    <div id="s3" class="out"></div>
+  </section>
+
+  <section class="card">
+    <h2>S4 · Authorization levels</h2>
+    <p class="desc">Locally all are callable; in Azure the last two need a key.</p>
+    <div class="row">
+      <button class="ghost" onclick="call('s4', get('/secure/public'))">public</button>
+      <button class="ghost" onclick="call('s4', get('/secure/key'))">function-key</button>
+      <button class="ghost" onclick="call('s4', get('/secure/admin'))">admin</button>
+    </div>
+    <div id="s4" class="out"></div>
+  </section>
+
+  <section class="card">
+    <h2>S5 · Dependency Injection</h2>
+    <p class="desc">Injected service + config. <code>GET /di/{name}</code></p>
+    <div class="row"><input id="s5name" value="Team" /></div>
+    <button onclick="call('s5', get(`/di/${enc(val('s5name'))}`))">Call</button>
+    <div id="s5" class="out"></div>
+  </section>
+
+  <!-- ============ ENTERPRISE ORDERS ============ -->
+  <section class="card" style="grid-column:1/-1">
+    <h2>Enterprise · Order Intake API</h2>
+    <p class="desc">Protected by the API-key middleware. Create is idempotent per <code>Idempotency-Key</code>.</p>
+    <div class="row">
+      <label>x-api-key</label><input id="apikey" value="local-demo-key-12345" style="min-width:220px" />
+      <label>Idempotency-Key</label><input id="idem" value="order-001" />
+      <button class="ghost" onclick="newIdem()">new key</button>
+    </div>
+    <textarea id="orderBody">{
+  "customerId": "CUST-100",
+  "currency": "USD",
+  "lines": [
+    { "sku": "A1", "quantity": 2, "unitPrice": 9.5 },
+    { "sku": "B2", "quantity": 1, "unitPrice": 5 }
+  ]
+}</textarea>
+    <div class="row" style="margin-top:8px">
+      <button onclick="createOrder()">POST /orders (create)</button>
+      <button class="ghost" onclick="call('orders', get('/orders', true))">GET /orders (list)</button>
+      <input id="orderId" placeholder="order id…" />
+      <button class="ghost" onclick="call('orders', get('/orders/'+enc(val('orderId')), true))">GET /orders/{id}</button>
+    </div>
+    <div id="orders" class="out"></div>
+  </section>
+</main>
+
+<script>
+  const val = id => document.getElementById(id).value.trim();
+  const enc = encodeURIComponent;
+  const baseUrl = () => val('base').replace(/\/$/, '');
+
+  // Build a request descriptor. `auth` adds the Orders API key header.
+  function get(path, auth=false){ return { method:'GET', path, headers: auth ? keyHeader() : {} }; }
+  function post(path, body, headers={}){ return { method:'POST', path, body, headers }; }
+  function keyHeader(){ return { 'x-api-key': val('apikey') }; }
+
+  function newIdem(){ document.getElementById('idem').value = 'order-' + Math.random().toString(36).slice(2,8); }
+
+  function createOrder(){
+    const req = post('/orders', val('orderBody'), {
+      'Content-Type':'application/json',
+      'x-api-key': val('apikey'),
+      'Idempotency-Key': val('idem')
+    });
+    call('orders', req);
+  }
+
+  // Execute a request descriptor and render the result into the target element.
+  async function call(target, req){
+    const el = document.getElementById(target);
+    const url = baseUrl() + req.path;
+    el.innerHTML = `<div class="meta">${req.method} ${url} …</div>`;
+    try {
+      const res = await fetch(url, { method:req.method, headers:req.headers, body:req.body });
+      const text = await res.text();
+      let pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+      const okCls = res.ok ? 'ok' : 'bad';
+      el.innerHTML =
+        `<div class="meta">${req.method} ${url}</div>` +
+        `<div class="meta">HTTP <span class="status ${okCls}">${res.status} ${res.statusText}</span></div>` +
+        `<pre>${escapeHtml(pretty)}</pre>`;
+    } catch (e){
+      el.innerHTML = `<div class="meta">${req.method} ${url}</div>` +
+        `<div class="status bad">Network error: ${escapeHtml(e.message)}</div>` +
+        `<div class="meta">Is the host running with CORS enabled? (see README)</div>`;
+    }
+  }
+  function escapeHtml(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+### =====================================================================
+### Workshop request collection.
+### Open in VS 2022 or VS Code (with the REST Client extension) and click
+### "Send Request" above each block. Assumes the host runs on port 7218.
+### =====================================================================
+
+@base = http://localhost:7071/api
+@apiKey = local-demo-key-12345
+
+### ---- Track A: Learning ----
+
+### S1 — the absolute minimum
+GET {{base}}/S1_HelloWorld
+
+### S2 — route param + query string
+GET {{base}}/greet/Monika?loud=true
+
+### S3 — POST body + validation (valid)
+POST {{base}}/sum
+Content-Type: application/json
+
+{ "numbers": [3, 4, 5] }
+
+### S3 — POST body (bad JSON -> 400)
+POST {{base}}/sum
+Content-Type: application/json
+
+{ oops
+
+### S4 — public (no key)
+GET {{base}}/secure/public
+
+### S4 — function-key protected (open locally; needs key in Azure)
+GET {{base}}/secure/key
+
+### S5 — dependency injection + config
+GET {{base}}/di/Team
+
+### ---- Track B: Enterprise Order Intake API ----
+
+### Create order WITHOUT the api key -> 401 Unauthorized
+POST {{base}}/orders
+Content-Type: application/json
+Idempotency-Key: demo-1
+
+{ "customerId": "CUST-100", "currency": "USD", "lines": [ { "sku": "A1", "quantity": 2, "unitPrice": 9.5 } ] }
+
+### Create order WITH key -> 201 Created
+POST {{base}}/orders
+Content-Type: application/json
+x-api-key: {{apiKey}}
+Idempotency-Key: order-abc
+
+{ "customerId": "CUST-100", "currency": "USD", "lines": [ { "sku": "A1", "quantity": 2, "unitPrice": 9.5 }, { "sku": "B2", "quantity": 1, "unitPrice": 5 } ] }
+
+### Retry the SAME Idempotency-Key -> 200 OK, same order (no duplicate)
+POST {{base}}/orders
+Content-Type: application/json
+x-api-key: {{apiKey}}
+Idempotency-Key: order-abc
+
+{ "customerId": "CUST-100", "currency": "USD", "lines": [ { "sku": "A1", "quantity": 2, "unitPrice": 9.5 }, { "sku": "B2", "quantity": 1, "unitPrice": 5 } ] }
+
+### Validation failure -> 400 problem+json
+POST {{base}}/orders
+Content-Type: application/json
+x-api-key: {{apiKey}}
+Idempotency-Key: bad-1
+
+{ "customerId": "", "currency": "US", "lines": [] }
+
+### List all orders
+GET {{base}}/orders
+x-api-key: {{apiKey}}
+
+### Get one (replace the id with one returned by Create)
+GET {{base}}/orders/REPLACE_WITH_ID
+x-api-key: {{apiKey}}
