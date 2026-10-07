@@ -15,7 +15,7 @@ namespace HelloDurable;
 public static class HelloOrchestration
 {
     // 1) CLIENT — a normal HTTP function that STARTS the orchestration.
-    //    GET http://localhost:7220/api/start
+    //    GET http://localhost:7071/api/start
     [Function("StartHello")]
     public static async Task<IActionResult> Start(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "start")] HttpRequest req,
@@ -55,11 +55,18 @@ public static class HelloOrchestration
     [Function("SayHello")]
     public static string SayHello([ActivityTrigger] string city)
     {
-        Random r = new Random();
+        /*Random r = new Random();
         if(r.Next(10) < 4)
         {
             throw new Exception();
-        }
+        }*/
+        
+        //throw exception
+        // if (city == "London")
+        // {
+        //     throw new Exception("Something went wrong");
+        // }
+
         return $"Hello, {city}!";
     }
 }

@@ -5,7 +5,7 @@ Two dependency-free HTML pages to exercise every function from a browser:
 | Page | Drives | Default host |
 |------|--------|--------------|
 | [stateless.html](stateless.html) | `SimpleHttpFunction` — S1–S5 learning + Orders API | `http://localhost:7218` |
-| [durable.html](durable.html) | `HelloDurable` + `DurableFunctionDemo` orchestrations | `7220` and `7219` |
+| [durable.html](durable.html) | `HelloDurable` + `DurableFunctionDemo` orchestrations | `7071` and `7219` |
 
 Each page has a **Base URL** field, request/response panels, and (for durable)
 live status polling with a colored status dot.
@@ -26,7 +26,7 @@ cd SimpleHttpFunction && func start --port 7218 --cors "*"
 npx azurite --silent --location ./__azurite
 ```
 ```bash
-cd HelloDurable && func start --port 7220 --cors "*"
+cd HelloDurable && func start --port 7071 --cors "*"
 ```
 ```bash
 cd DurableFunctionDemo && func start --port 7219 --cors "*"
